@@ -98,8 +98,8 @@
     border-right: 1px solid var(--border);
     display: flex; flex-direction: column;
     padding: 10px;
-    gap: 10px;
-    overflow-y: auto;
+    gap: 6px;
+    overflow: hidden;
   }
 
   .ctrl-section { display: flex; flex-direction: column; gap: 6px; }
@@ -113,21 +113,21 @@
   /* Material Buttons */
   .mat-btn {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px;
+    padding: 6px 8px;
     background: var(--panel2);
     border: 2px solid var(--border);
     border-radius: var(--r);
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s, transform 0.1s;
-    min-height: 48px;
+    min-height: 40px;
     text-align: left;
   }
   .mat-btn:hover { border-color: #4a5080; background: #20243a; }
   .mat-btn.selected { border-color: var(--accent); background: #2a2010; }
   .mat-icon {
-    width: 26px; height: 26px; border-radius: 5px;
+    width: 22px; height: 22px; border-radius: 4px;
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    font-size: 14px;
+    font-size: 12px;
   }
   .mat-name { font-size: 13px; font-weight: 600; line-height: 1.2; }
   .mat-stat { font-size: 10px; color: var(--text-dim); }
@@ -135,29 +135,29 @@
   /* Structure Buttons */
   .str-btn {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px;
+    padding: 6px 8px;
     background: var(--panel2);
     border: 2px solid var(--border);
     border-radius: var(--r);
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s;
-    min-height: 48px;
+    min-height: 40px;
     text-align: left;
   }
   .str-btn:hover { border-color: #4a5080; background: #20243a; }
   .str-btn.selected { border-color: #60a0e0; background: #101828; }
 
-  .str-svg { width: 32px; height: 32px; flex-shrink: 0; }
+  .str-svg { width: 26px; height: 26px; flex-shrink: 0; }
   .str-name { font-size: 13px; font-weight: 600; }
   .str-stat { font-size: 10px; color: var(--text-dim); }
 
   /* Action Buttons */
   #buildBtn, #testBtn {
-    width: 100%; padding: 12px;
+    width: 100%; padding: 9px;
     border: none; border-radius: var(--r);
-    font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
     cursor: pointer; transition: opacity 0.15s, transform 0.1s;
-    min-height: 48px;
+    min-height: 40px;
   }
   #buildBtn { background: var(--accent3); color: #0d1a15; }
   #testBtn  { background: var(--accent2); color: #fff; }
@@ -974,7 +974,7 @@ function roundManager(round) {
   } else {
     return {
       difficulty: 'hard',
-      magnitude:  +(7.0 + Math.random() * 2.0).toFixed(1),
+      magnitude:  +(7.0 + Math.random() * 1.0).toFixed(1),
       timer: 20
     };
   }
