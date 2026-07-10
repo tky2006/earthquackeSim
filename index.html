@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Earthquake Simulator</title>
+<style>
+  /* ── RESET & BASE ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:          #0d0f1a;
+    --panel:       #151828;
+    --panel2:      #1c2035;
+    --border:      #2a3050;
+    --accent:      #f4a33a;
+    --accent2:     #e05c3a;
+    --accent3:     #3ae0a0;
+    --text:        #e8eaf6;
+    --text-dim:    #7880aa;
+    --danger:      #e0423a;
+    --safe:        #3ae09a;
+    --wood:        #c8833a;
+    --brick:       #c84040;
+    --steel:       #708090;
+    --stone:       #8090a0;
+    --composite:   #a070c8;
+    --r:           8px;
+    --r2:          12px;
+    --shadow:      0 4px 24px rgba(0,0,0,0.5);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── LAYOUT ── */
+  #app {
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+
+  /* HUD */
+  #hud {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  .hud-title {
+    font-size: 16px; font-weight: 700;
+    letter-spacing: 1px; color: var(--accent);
+    flex: 0 0 auto;
+  }
+  .hud-sep { flex: 1; }
+  .hud-block {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 5px 10px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .hud-label { color: var(--text-dim); font-weight: 400; font-size: 12px; }
+  #livesDisplay { color: #e05c3a; letter-spacing: 2px; font-size: 16px; }
+  #timerDisplay { color: var(--accent); font-size: 18px; font-weight: 700; min-width: 32px; text-align: right; }
+  #scoreDisplay { color: var(--accent3); }
+  #roundDisplay { color: #a0a8d0; }
+  #magDisplay   { color: #e090f0; }
+  #diffDisplay  { font-size: 11px; padding: 3px 8px; border-radius: 20px; }
+  .diff-easy   { background: #1a3a20; color: var(--safe); border-color: #2a6030; }
+  .diff-medium { background: #3a2a10; color: var(--accent); border-color: #6a4a20; }
+  .diff-hard   { background: #3a1010; color: var(--danger); border-color: #6a2020; }
+
+  /* MAIN AREA */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* LEFT CONTROLS */
+  #controls {
+    width: 200px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 10px;
+    gap: 10px;
+    overflow-y: auto;
+  }
+
+  .ctrl-section { display: flex; flex-direction: column; gap: 6px; }
+  .ctrl-heading {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text-dim);
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Material Buttons */
+  .mat-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    background: var(--panel2);
+    border: 2px solid var(--border);
+    border-radius: var(--r);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    min-height: 48px;
+    text-align: left;
+  }
+  .mat-btn:hover { border-color: #4a5080; background: #20243a; }
+  .mat-btn.selected { border-color: var(--accent); background: #2a2010; }
+  .mat-icon {
+    width: 26px; height: 26px; border-radius: 5px;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .mat-name { font-size: 13px; font-weight: 600; line-height: 1.2; }
+  .mat-stat { font-size: 10px; color: var(--text-dim); }
+
+  /* Structure Buttons */
+  .str-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    background: var(--panel2);
+    border: 2px solid var(--border);
+    border-radius: var(--r);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    min-height: 48px;
+    text-align: left;
+  }
+  .str-btn:hover { border-color: #4a5080; background: #20243a; }
+  .str-btn.selected { border-color: #60a0e0; background: #101828; }
+
+  .str-svg { width: 32px; height: 32px; flex-shrink: 0; }
+  .str-name { font-size: 13px; font-weight: 600; }
+  .str-stat { font-size: 10px; color: var(--text-dim); }
+
+  /* Action Buttons */
+  #buildBtn, #testBtn {
+    width: 100%; padding: 12px;
+    border: none; border-radius: var(--r);
+    font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    min-height: 48px;
+  }
+  #buildBtn { background: var(--accent3); color: #0d1a15; }
+  #testBtn  { background: var(--accent2); color: #fff; }
+  #buildBtn:hover, #testBtn:hover { opacity: 0.88; transform: translateY(-1px); }
+  #buildBtn:active, #testBtn:active { transform: translateY(0); }
+  #buildBtn:disabled, #testBtn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  /* Stats panel */
+  #statsPanel {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  #statsPanel .stat-row {
+    display: flex; justify-content: space-between;
+    padding: 2px 0;
+  }
+  #statsPanel .stat-val { color: var(--text); font-weight: 600; }
+  #stabilityBar {
+    height: 6px; background: #1a1e30;
+    border-radius: 3px; margin-top: 6px; overflow: hidden;
+  }
+  #stabilityFill {
+    height: 100%; border-radius: 3px;
+    background: var(--safe);
+    transition: width 0.4s, background 0.4s;
+    width: 0%;
+  }
+
+  /* ARENA */
+  #arena {
+    flex: 1;
+    display: flex; align-items: flex-end; justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 100%, #1a1030 0%, #0d0f1a 70%);
+    padding-bottom: 20px;
+  }
+
+  /* Ground */
+  #ground {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, #2a3050 0%, #1a2040 100%);
+    border-top: 2px solid #3a4060;
+  }
+  .ground-line {
+    position: absolute;
+    top: 8px; bottom: 0;
+    width: 1px; background: rgba(80,100,150,0.2);
+  }
+
+  /* Building Container */
+  #buildingWrap {
+    position: relative;
+    display: flex; align-items: flex-end; justify-content: center;
+    width: clamp(120px, 25vw, 220px);
+    transition: none;
+    z-index: 5;
+  }
+
+  #buildingContainer {
+    position: relative;
+    width: 100%;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+
+  #buildingSVG {
+    width: 100%;
+    max-height: 55vh;
+    filter: drop-shadow(0 0 20px rgba(100,140,255,0.15));
+    transition: filter 0.3s;
+  }
+
+  /* SHAKE */
+  @keyframes shake-light {
+    0%,100%{ transform: translateX(0) rotate(0deg); }
+    10%{ transform: translateX(-4px) rotate(-0.3deg); }
+    20%{ transform: translateX(6px) rotate(0.4deg); }
+    30%{ transform: translateX(-8px) rotate(-0.5deg); }
+    40%{ transform: translateX(5px) rotate(0.3deg); }
+    50%{ transform: translateX(-6px) rotate(-0.4deg); }
+    60%{ transform: translateX(9px) rotate(0.5deg); }
+    70%{ transform: translateX(-4px) rotate(-0.2deg); }
+    80%{ transform: translateX(7px) rotate(0.4deg); }
+    90%{ transform: translateX(-3px) rotate(-0.1deg); }
+  }
+  @keyframes shake-medium {
+    0%,100%{ transform: translateX(0) rotate(0deg); }
+    10%{ transform: translateX(-10px) rotate(-0.8deg); }
+    20%{ transform: translateX(14px) rotate(1deg); }
+    30%{ transform: translateX(-16px) rotate(-1.2deg); }
+    40%{ transform: translateX(12px) rotate(0.9deg); }
+    50%{ transform: translateX(-14px) rotate(-1deg); }
+    60%{ transform: translateX(18px) rotate(1.3deg); }
+    70%{ transform: translateX(-10px) rotate(-0.7deg); }
+    80%{ transform: translateX(15px) rotate(1deg); }
+    90%{ transform: translateX(-8px) rotate(-0.5deg); }
+  }
+  @keyframes shake-hard {
+    0%,100%{ transform: translateX(0) rotate(0deg); }
+    5%{ transform: translateX(-20px) rotate(-2deg); }
+    10%{ transform: translateX(24px) rotate(2.5deg); }
+    15%{ transform: translateX(-28px) rotate(-3deg); }
+    20%{ transform: translateX(22px) rotate(2.2deg); }
+    25%{ transform: translateX(-25px) rotate(-2.7deg); }
+    30%{ transform: translateX(30px) rotate(3.2deg); }
+    35%{ transform: translateX(-18px) rotate(-1.8deg); }
+    40%{ transform: translateX(26px) rotate(2.6deg); }
+    45%{ transform: translateX(-22px) rotate(-2.3deg); }
+    50%{ transform: translateX(28px) rotate(2.8deg); }
+    55%{ transform: translateX(-24px) rotate(-2.4deg); }
+    60%{ transform: translateX(20px) rotate(2deg); }
+    65%{ transform: translateX(-16px) rotate(-1.6deg); }
+    70%{ transform: translateX(22px) rotate(2.2deg); }
+    75%{ transform: translateX(-14px) rotate(-1.4deg); }
+    80%{ transform: translateX(18px) rotate(1.8deg); }
+    85%{ transform: translateX(-10px) rotate(-1deg); }
+    90%{ transform: translateX(14px) rotate(1.4deg); }
+    95%{ transform: translateX(-6px) rotate(-0.6deg); }
+  }
+
+  .shake-light  { animation: shake-light  0.4s ease-in-out infinite; }
+  .shake-medium { animation: shake-medium 0.3s ease-in-out infinite; }
+  .shake-hard   { animation: shake-hard   0.2s ease-in-out infinite; }
+
+  @keyframes collapse {
+    0%{ transform: translateX(0) rotate(0); opacity: 1; }
+    20%{ transform: translateX(-30px) rotate(-15deg); }
+    50%{ transform: translateX(20px) rotate(25deg) translateY(40px); opacity: 0.6; }
+    100%{ transform: translateX(0) rotate(-45deg) translateY(150px); opacity: 0; }
+  }
+  .collapsing { animation: collapse 1.2s ease-in forwards; }
+
+  /* PARTICLES */
+  .debris {
+    position: absolute;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 20;
+  }
+  @keyframes debris-anim {
+    0%  { transform: translate(0,0) rotate(0deg); opacity: 1; }
+    100%{ transform: var(--dx) var(--dy) rotate(var(--dr)); opacity: 0; }
+  }
+
+  /* RIGHT PANEL */
+  #rightPanel {
+    width: 180px; flex-shrink: 0;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    padding: 10px;
+    gap: 10px;
+    overflow-y: auto;
+  }
+
+  #seismograph {
+    background: #050810;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    height: 80px;
+    overflow: hidden;
+    position: relative;
+  }
+  #seismograph canvas { width: 100%; height: 100%; }
+  .seismo-label {
+    position: absolute; top: 4px; left: 6px;
+    font-size: 9px; color: var(--text-dim); letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .panel-heading {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text-dim);
+    padding-bottom: 4px; border-bottom: 1px solid var(--border);
+  }
+
+  #roundHistory {
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 11px;
+  }
+  .hist-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 6px; border-radius: 5px;
+    background: var(--panel2);
+  }
+  .hist-r { color: var(--text-dim); font-size: 10px; }
+  .hist-result { font-weight: 700; }
+  .hist-survived { color: var(--safe); }
+  .hist-failed   { color: var(--danger); }
+  .hist-score    { margin-left: auto; color: var(--accent); font-size: 10px; }
+
+  #nextRoundBtn {
+    width: 100%; padding: 10px;
+    border: none; border-radius: var(--r);
+    background: var(--accent); color: #1a1000;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s;
+    min-height: 48px; display: none;
+  }
+  #nextRoundBtn:hover { opacity: 0.85; }
+
+  /* ── OVERLAYS ── */
+  .overlay {
+    position: fixed; inset: 0;
+    z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(5,8,20,0.92);
+    backdrop-filter: blur(4px);
+  }
+  .overlay.hidden { display: none; }
+
+  /* Instructions */
+  #instructOverlay .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r2);
+    padding: 28px;
+    max-width: 460px; width: 92%;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  .inst-page { display: none; }
+  .inst-page.active { display: block; }
+
+  .inst-title {
+    font-size: 22px; font-weight: 800;
+    color: var(--accent); margin-bottom: 4px;
+    letter-spacing: 0.5px;
+  }
+  .inst-sub {
+    font-size: 12px; color: var(--text-dim);
+    margin-bottom: 18px;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .inst-body {
+    font-size: 13px; line-height: 1.7;
+    color: #c0c8e0;
+  }
+  .inst-body b { color: var(--text); }
+  .inst-illus {
+    margin: 14px 0;
+    padding: 12px;
+    background: var(--panel2);
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+  }
+  .inst-illus svg { display: block; margin: 0 auto; }
+
+  .inst-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 20px;
+  }
+  .page-dots { display: flex; gap: 6px; }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border); transition: background 0.2s;
+  }
+  .dot.active { background: var(--accent); }
+  .inst-btn {
+    padding: 8px 20px;
+    border: none; border-radius: var(--r);
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s;
+    min-height: 40px; min-width: 80px;
+  }
+  .inst-btn-prev { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  .inst-btn-next { background: var(--accent); color: #1a1000; }
+  .inst-btn:hover { opacity: 0.82; }
+
+  /* Result Overlay */
+  #resultOverlay .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r2);
+    padding: 28px;
+    max-width: 380px; width: 90%;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .result-emoji { font-size: 52px; margin-bottom: 10px; }
+  .result-title { font-size: 26px; font-weight: 800; margin-bottom: 8px; }
+  .result-survived { color: var(--safe); }
+  .result-failed   { color: var(--danger); }
+  .result-msg { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
+  .result-score-box {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 12px;
+    margin-bottom: 18px;
+    font-size: 13px;
+  }
+  .result-score-row { display: flex; justify-content: space-between; padding: 3px 0; }
+  .result-score-row .lbl { color: var(--text-dim); }
+  .result-score-row .val { font-weight: 700; color: var(--accent); }
+  .result-btn {
+    padding: 12px 28px;
+    border: none; border-radius: var(--r);
+    background: var(--accent); color: #1a1000;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s;
+    min-height: 48px; min-width: 160px;
+  }
+  .result-btn:hover { opacity: 0.85; }
+
+  /* Stars */
+  .stars-row { display: flex; justify-content: center; gap: 6px; margin: 10px 0; }
+
+  /* Game Over */
+  #gameOverOverlay .card {
+    background: var(--panel);
+    border: 2px solid var(--danger);
+    border-radius: var(--r2);
+    padding: 30px;
+    max-width: 380px; width: 90%;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(224,66,58,0.25);
+  }
+  .go-title { font-size: 36px; font-weight: 900; color: var(--danger); margin-bottom: 10px; letter-spacing: 2px; }
+  .go-score { font-size: 18px; color: var(--accent); margin-bottom: 6px; }
+  .go-rounds { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
+  .go-btn {
+    padding: 12px 28px;
+    border: none; border-radius: var(--r);
+    background: var(--danger); color: #fff;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s;
+    min-height: 48px;
+  }
+  .go-btn:hover { opacity: 0.82; }
+
+  /* STATUS MESSAGE */
+  #statusMsg {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 22px; font-weight: 800;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 30;
+    text-align: center;
+  }
+  #statusMsg.show { opacity: 1; }
+
+  /* magnitude meter */
+  #magMeter {
+    position: absolute;
+    left: 10px; bottom: 30px;
+    width: 12px;
+    height: 100px;
+    background: #101220;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 6;
+  }
+  #magFill {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, var(--safe), var(--accent), var(--danger));
+    border-radius: 6px;
+    transition: height 0.5s;
+  }
+
+  /* Countdown ring */
+  #timerRing {
+    position: absolute;
+    right: 14px; bottom: 28px;
+    width: 56px; height: 56px;
+    z-index: 6;
+  }
+  #timerRing circle { fill: none; stroke-width: 4; }
+  #timerRing .ring-bg  { stroke: #1a2030; }
+  #timerRing .ring-fg  { stroke: var(--accent); stroke-linecap: round;
+    transform: rotate(-90deg); transform-origin: 50% 50%;
+    transition: stroke-dashoffset 0.9s linear, stroke 0.3s; }
+
+  /* phase label */
+  #phaseLabel {
+    position: absolute;
+    top: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-dim);
+    background: rgba(10,12,24,0.7);
+    padding: 3px 10px; border-radius: 20px;
+    border: 1px solid var(--border);
+    z-index: 6;
+  }
+
+  /* responsive tweaks */
+  @media (max-width: 680px) {
+    #controls { width: 150px; }
+    #rightPanel { width: 130px; }
+    .mat-name, .str-name { font-size: 11px; }
+  }
+  @media (max-width: 520px) {
+    #rightPanel { display: none; }
+    #controls { width: 140px; }
+  }
+
+  /* Announcement toast */
+  #toast {
+    position: fixed;
+    top: 70px; left: 50%; transform: translateX(-50%);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 18px;
+    font-size: 13px;
+    color: var(--text);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+
+  /* Pulse ring on building */
+  @keyframes pulse-safe {
+    0%  { box-shadow: 0 0 0 0 rgba(58,224,160,0.5); }
+    100%{ box-shadow: 0 0 0 20px rgba(58,224,160,0); }
+  }
+  @keyframes pulse-danger {
+    0%  { box-shadow: 0 0 0 0 rgba(224,66,58,0.5); }
+    100%{ box-shadow: 0 0 0 20px rgba(224,66,58,0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HUD ── -->
+<div id="app">
+  <div id="hud">
+    <span class="hud-title">🌍 QUAKE SIM</span>
+    <span class="hud-sep"></span>
+    <div class="hud-block" aria-label="Current round">
+      <span class="hud-label">RND</span>
+      <span id="roundDisplay">1/10</span>
+    </div>
+    <div class="hud-block" aria-label="Difficulty">
+      <span id="diffDisplay" class="diff-easy">EASY</span>
+    </div>
+    <div class="hud-block" aria-label="Magnitude">
+      <span class="hud-label">MAG</span>
+      <span id="magDisplay">–</span>
+    </div>
+    <div class="hud-block" aria-label="Timer">
+      <span class="hud-label">TIME</span>
+      <span id="timerDisplay">–</span>
+    </div>
+    <div class="hud-block" aria-label="Lives remaining">
+      <span class="hud-label">LIVES</span>
+      <span id="livesDisplay">❤️❤️❤️</span>
+    </div>
+    <div class="hud-block" aria-label="Score">
+      <span class="hud-label">SCORE</span>
+      <span id="scoreDisplay">0</span>
+    </div>
+    <button id="helpBtn" class="hud-block" style="cursor:pointer;border:none;background:var(--panel2);" aria-label="Help / Instructions">❓</button>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <!-- LEFT: CONTROLS -->
+    <nav id="controls" aria-label="Building controls">
+      <div class="ctrl-section">
+        <div class="ctrl-heading">Material</div>
+        <!-- Material buttons injected by JS -->
+      </div>
+      <div class="ctrl-section">
+        <div class="ctrl-heading">Structure</div>
+        <!-- Structure buttons injected by JS -->
+      </div>
+      <div class="ctrl-section">
+        <button id="buildBtn" aria-label="Build structure" disabled>🏗️ BUILD</button>
+        <button id="testBtn"  aria-label="Test against earthquake" disabled>⚡ TEST</button>
+      </div>
+      <div id="statsPanel">
+        <div class="stat-row"><span>Strength</span><span class="stat-val" id="statStrength">–</span></div>
+        <div class="stat-row"><span>Flex</span><span class="stat-val" id="statFlex">–</span></div>
+        <div class="stat-row"><span>Stability</span><span class="stat-val" id="statStability">–</span></div>
+        <div class="stat-row"><span>Score</span><span class="stat-val" id="statScore">–</span></div>
+        <div id="stabilityBar"><div id="stabilityFill"></div></div>
+      </div>
+    </nav>
+
+    <!-- ARENA -->
+    <div id="arena" aria-label="Arena — building preview and earthquake simulation">
+      <div id="phaseLabel">SELECT MATERIAL & STRUCTURE</div>
+      <div id="statusMsg"></div>
+      <div id="magMeter"><div id="magFill" style="height:0%"></div></div>
+      <svg id="timerRing" viewBox="0 0 56 56" aria-hidden="true">
+        <circle class="ring-bg" cx="28" cy="28" r="24"/>
+        <circle class="ring-fg" cx="28" cy="28" r="24"
+          stroke-dasharray="150.8" stroke-dashoffset="150.8" id="timerArc"/>
+      </svg>
+      <div id="buildingWrap">
+        <div id="buildingContainer">
+          <svg id="buildingSVG" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+            <text x="100" y="160" text-anchor="middle" fill="#2a3050" font-size="14" font-family="sans-serif">Build a structure</text>
+          </svg>
+        </div>
+      </div>
+      <div id="ground">
+        <!-- grid lines -->
+        <div class="ground-line" style="left:10%"></div>
+        <div class="ground-line" style="left:20%"></div>
+        <div class="ground-line" style="left:30%"></div>
+        <div class="ground-line" style="left:40%"></div>
+        <div class="ground-line" style="left:50%"></div>
+        <div class="ground-line" style="left:60%"></div>
+        <div class="ground-line" style="left:70%"></div>
+        <div class="ground-line" style="left:80%"></div>
+        <div class="ground-line" style="left:90%"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <aside id="rightPanel" aria-label="Seismograph and history">
+      <div class="panel-heading">Seismograph</div>
+      <div id="seismograph">
+        <span class="seismo-label">LIVE</span>
+        <canvas id="seismoCanvas" width="160" height="80"></canvas>
+      </div>
+      <div class="panel-heading">History</div>
+      <div id="roundHistory"></div>
+      <button id="nextRoundBtn" aria-label="Continue to next round">Next Round →</button>
+    </aside>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- ── MAIN MENU OVERLAY ── -->
+<div id="mainMenuOverlay" class="overlay" role="dialog" aria-modal="true" aria-label="Main Menu">
+  <div class="card" style="text-align:center;max-width:400px">
+    <div style="font-size:52px;margin-bottom:6px">🌍</div>
+    <div style="font-size:26px;font-weight:900;color:var(--accent);letter-spacing:1px;margin-bottom:4px">EARTHQUAKE</div>
+    <div style="font-size:14px;font-weight:700;letter-spacing:4px;color:var(--text-dim);margin-bottom:24px">SIMULATOR</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button id="menuStartBtn" aria-label="Start game" style="
+        width:100%;padding:15px;border:none;border-radius:8px;
+        background:var(--accent);color:#1a1000;
+        font-size:16px;font-weight:800;letter-spacing:1px;
+        cursor:pointer;min-height:52px;transition:opacity 0.15s,transform 0.1s;
+      ">▶ START GAME</button>
+      <button id="menuHowToBtn" aria-label="How to play" style="
+        width:100%;padding:13px;border:2px solid var(--border);border-radius:8px;
+        background:var(--panel2);color:var(--text);
+        font-size:14px;font-weight:700;letter-spacing:0.5px;
+        cursor:pointer;min-height:48px;transition:opacity 0.15s,transform 0.1s;
+      ">📖 HOW TO PLAY</button>
+    </div>
+    <div style="margin-top:20px;font-size:11px;color:var(--text-dim);line-height:1.6">
+      10 rounds · 3 lives · Easy → Medium → Hard
+    </div>
+  </div>
+</div>
+
+<!-- ── INSTRUCTIONS OVERLAY ── -->
+<div id="instructOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="How to Play">
+  <div class="card">
+    <!-- Page 0 -->
+    <div class="inst-page active" id="inst-0">
+      <div class="inst-title">🌍 How to Play</div>
+      <div class="inst-sub">Overview — 1/4</div>
+      <div class="inst-body">
+        Welcome, structural engineer! Your job is to design buildings that can <b>survive earthquakes</b> across 10 increasingly dangerous rounds.<br><br>
+        You start with <b>3 lives ❤️</b>. Lose a life if your structure collapses or the timer runs out.
+        <b>Survive all 10 rounds</b> to win!
+      </div>
+      <div class="inst-illus">
+        <svg viewBox="0 0 280 100" width="260" height="100" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="20" width="60" height="60" rx="4" fill="#1c2035" stroke="#2a3050" stroke-width="1.5"/>
+          <text x="50" y="56" text-anchor="middle" font-size="28" font-family="sans-serif">❤️</text>
+          <text x="50" y="90" text-anchor="middle" fill="#7880aa" font-size="10" font-family="sans-serif">3 LIVES</text>
+          <rect x="110" y="20" width="60" height="60" rx="4" fill="#1c2035" stroke="#2a3050" stroke-width="1.5"/>
+          <text x="140" y="56" text-anchor="middle" font-size="28" font-family="sans-serif">🏗️</text>
+          <text x="140" y="90" text-anchor="middle" fill="#7880aa" font-size="10" font-family="sans-serif">10 ROUNDS</text>
+          <rect x="200" y="20" width="60" height="60" rx="4" fill="#1c2035" stroke="#2a3050" stroke-width="1.5"/>
+          <text x="230" y="56" text-anchor="middle" font-size="28" font-family="sans-serif">🏆</text>
+          <text x="230" y="90" text-anchor="middle" fill="#7880aa" font-size="10" font-family="sans-serif">HIGH SCORE</text>
+        </svg>
+      </div>
+    </div>
+    <!-- Page 1 -->
+    <div class="inst-page" id="inst-1">
+      <div class="inst-title">🧱 Choose Materials</div>
+      <div class="inst-sub">Building basics — 2/4</div>
+      <div class="inst-body">
+        Each material has different <b>Strength</b>, <b>Flexibility</b>, and <b>Weight</b>.<br><br>
+        <b>Wood</b> — light & flexible, but low strength.<br>
+        <b>Brick</b> — strong but brittle. Cracks under heavy shaking.<br>
+        <b>Steel</b> — excellent strength AND flexibility.<br>
+        <b>Stone</b> — very strong, zero flex. Good for moderate quakes.<br>
+        <b>Composite</b> — balanced across all stats. A safe bet.
+      </div>
+      <div class="inst-illus">
+        <svg viewBox="0 0 280 70" width="260" height="70" xmlns="http://www.w3.org/2000/svg">
+          <g>
+            <rect x="5" y="10" width="44" height="50" rx="4" fill="#c8833a22" stroke="#c8833a" stroke-width="1.5"/>
+            <text x="27" y="38" text-anchor="middle" font-size="18" font-family="sans-serif">🪵</text>
+            <text x="27" y="55" text-anchor="middle" fill="#c8833a" font-size="9" font-family="sans-serif">WOOD</text>
+          </g>
+          <g>
+            <rect x="57" y="10" width="44" height="50" rx="4" fill="#c8404022" stroke="#c84040" stroke-width="1.5"/>
+            <text x="79" y="38" text-anchor="middle" font-size="18" font-family="sans-serif">🧱</text>
+            <text x="79" y="55" text-anchor="middle" fill="#c84040" font-size="9" font-family="sans-serif">BRICK</text>
+          </g>
+          <g>
+            <rect x="109" y="10" width="44" height="50" rx="4" fill="#70809022" stroke="#708090" stroke-width="1.5"/>
+            <text x="131" y="38" text-anchor="middle" font-size="18" font-family="sans-serif">🔩</text>
+            <text x="131" y="55" text-anchor="middle" fill="#708090" font-size="9" font-family="sans-serif">STEEL</text>
+          </g>
+          <g>
+            <rect x="161" y="10" width="44" height="50" rx="4" fill="#8090a022" stroke="#8090a0" stroke-width="1.5"/>
+            <text x="183" y="38" text-anchor="middle" font-size="18" font-family="sans-serif">🪨</text>
+            <text x="183" y="55" text-anchor="middle" fill="#8090a0" font-size="9" font-family="sans-serif">STONE</text>
+          </g>
+          <g>
+            <rect x="213" y="10" width="60" height="50" rx="4" fill="#a070c822" stroke="#a070c8" stroke-width="1.5"/>
+            <text x="243" y="38" text-anchor="middle" font-size="18" font-family="sans-serif">⚙️</text>
+            <text x="243" y="55" text-anchor="middle" fill="#a070c8" font-size="9" font-family="sans-serif">COMPOSITE</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <!-- Page 2 -->
+    <div class="inst-page" id="inst-2">
+      <div class="inst-title">🔺 Choose Structure</div>
+      <div class="inst-sub">Shape matters — 3/4</div>
+      <div class="inst-body">
+        Your building's shape affects how stable it is under seismic force.<br><br>
+        <b>Box</b> — simple, low stability.<br>
+        <b>Cross</b> — reinforced X-bracing. Medium stability.<br>
+        <b>Triangle</b> — triangles distribute force. High stability.<br>
+        <b>Dome</b> — arch geometry. Maximum stability under compression.<br><br>
+        Survival formula: <b>Str + Stability + (Flex × 0.5) ≥ Magnitude × 1.5</b>
+      </div>
+      <div class="inst-illus">
+        <svg viewBox="0 0 280 90" width="260" height="90" xmlns="http://www.w3.org/2000/svg">
+          <g transform="translate(15,10)">
+            <rect x="5" y="15" width="40" height="40" fill="none" stroke="#3a4060" stroke-width="2"/>
+            <text x="25" y="70" text-anchor="middle" fill="#7880aa" font-size="9" font-family="sans-serif">BOX ★★</text>
+          </g>
+          <g transform="translate(75,10)">
+            <rect x="15" y="5" width="20" height="50" fill="none" stroke="#60a0e0" stroke-width="2"/>
+            <rect x="5" y="20" width="40" height="20" fill="none" stroke="#60a0e0" stroke-width="2"/>
+            <text x="25" y="70" text-anchor="middle" fill="#60a0e0" font-size="9" font-family="sans-serif">CROSS ★★★</text>
+          </g>
+          <g transform="translate(140,5)">
+            <polygon points="25,5 5,55 45,55" fill="none" stroke="#f4a33a" stroke-width="2"/>
+            <text x="25" y="75" text-anchor="middle" fill="#f4a33a" font-size="9" font-family="sans-serif">TRIANGLE ★★★★</text>
+          </g>
+          <g transform="translate(205,5)">
+            <path d="M5,55 A30,35 0 0,1 55,55 Z" fill="none" stroke="#3ae0a0" stroke-width="2"/>
+            <line x1="5" y1="55" x2="55" y2="55" stroke="#3ae0a0" stroke-width="2"/>
+            <text x="30" y="75" text-anchor="middle" fill="#3ae0a0" font-size="9" font-family="sans-serif">DOME ★★★★★</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <!-- Page 3 -->
+    <div class="inst-page" id="inst-3">
+      <div class="inst-title">⚡ Scoring & Difficulty</div>
+      <div class="inst-sub">The challenge — 4/4</div>
+      <div class="inst-body">
+        <b>Rounds 1–4 (Easy):</b> Magnitude 3.0–4.5, 30 seconds<br>
+        <b>Rounds 5–7 (Medium):</b> Magnitude 5.0–6.5, 25 seconds<br>
+        <b>Rounds 8–10 (Hard):</b> Magnitude 7.0–9.0, 20 seconds<br><br>
+        <b>Score</b> = (Survived × 20) + (Perfect design × 30) + (Speed bonus)<br><br>
+        Stars are earned based on your overall performance across all rounds.
+      </div>
+      <div class="inst-illus">
+        <svg viewBox="0 0 280 60" width="260" height="60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="5" y="5" width="80" height="50" rx="6" fill="#1a3a2022" stroke="#3ae09a" stroke-width="1.5"/>
+          <text x="45" y="26" text-anchor="middle" fill="#3ae09a" font-size="11" font-weight="bold" font-family="sans-serif">EASY</text>
+          <text x="45" y="44" text-anchor="middle" fill="#7880aa" font-size="9" font-family="sans-serif">Mag 3.0–4.5</text>
+          <rect x="100" y="5" width="80" height="50" rx="6" fill="#3a2a1022" stroke="#f4a33a" stroke-width="1.5"/>
+          <text x="140" y="26" text-anchor="middle" fill="#f4a33a" font-size="11" font-weight="bold" font-family="sans-serif">MEDIUM</text>
+          <text x="140" y="44" text-anchor="middle" fill="#7880aa" font-size="9" font-family="sans-serif">Mag 5.0–6.5</text>
+          <rect x="195" y="5" width="80" height="50" rx="6" fill="#3a101022" stroke="#e0423a" stroke-width="1.5"/>
+          <text x="235" y="26" text-anchor="middle" fill="#e0423a" font-size="11" font-weight="bold" font-family="sans-serif">HARD</text>
+          <text x="235" y="44" text-anchor="middle" fill="#7880aa" font-size="9" font-family="sans-serif">Mag 7.0–9.0</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="inst-nav">
+      <button class="inst-btn inst-btn-prev" id="instPrev" aria-label="Previous page" style="display:none">← Back</button>
+      <div class="page-dots">
+        <div class="dot active" data-p="0"></div>
+        <div class="dot" data-p="1"></div>
+        <div class="dot" data-p="2"></div>
+        <div class="dot" data-p="3"></div>
+      </div>
+      <button class="inst-btn inst-btn-next" id="instNext" aria-label="Next page">Next →</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div id="resultOverlay" class="overlay hidden" role="dialog" aria-modal="true">
+  <div class="card">
+    <div class="result-emoji" id="resultEmoji">🏆</div>
+    <div class="result-title" id="resultTitle">SURVIVED!</div>
+    <div class="stars-row" id="resultStars"></div>
+    <div class="result-msg" id="resultMsg"></div>
+    <div class="result-score-box">
+      <div class="result-score-row"><span class="lbl">Round Bonus</span><span class="val" id="rbRound">+0</span></div>
+      <div class="result-score-row"><span class="lbl">Speed Bonus</span><span class="val" id="rbSpeed">+0</span></div>
+      <div class="result-score-row"><span class="lbl">Perfect Bonus</span><span class="val" id="rbPerfect">+0</span></div>
+      <div class="result-score-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:6px">
+        <span class="lbl">Total Score</span><span class="val" id="rbTotal">0</span>
+      </div>
+    </div>
+    <button class="result-btn" id="resultContinueBtn" aria-label="Continue to next round">Continue</button>
+  </div>
+</div>
+
+<!-- GAME OVER OVERLAY -->
+<div id="gameOverOverlay" class="overlay hidden" role="dialog" aria-modal="true">
+  <div class="card">
+    <div class="go-title">GAME OVER</div>
+    <div style="font-size:48px;margin-bottom:10px">💀</div>
+    <div class="stars-row" id="goStars"></div>
+    <div class="go-score">Final Score: <span id="goScore">0</span></div>
+    <div class="go-rounds" id="goRounds">Survived 0/10 rounds</div>
+    <button class="go-btn" id="restartBtn" aria-label="Restart game">🔄 Play Again</button>
+  </div>
+</div>
+
+<!-- WIN OVERLAY -->
+<div id="winOverlay" class="overlay hidden" role="dialog" aria-modal="true">
+  <div class="card" style="border:2px solid var(--accent3);box-shadow:0 0 40px rgba(58,224,160,0.2)">
+    <div style="font-size:52px;margin-bottom:10px">🏆</div>
+    <div style="font-size:28px;font-weight:900;color:var(--accent3);margin-bottom:8px;letter-spacing:1px">YOU WIN!</div>
+    <div class="stars-row" id="winStars"></div>
+    <div style="color:var(--text-dim);font-size:13px;margin:10px 0 6px">All 10 rounds survived!</div>
+    <div style="font-size:20px;color:var(--accent);font-weight:700;margin-bottom:20px">Score: <span id="winScore">0</span></div>
+    <button class="result-btn" style="background:var(--accent3);color:#0d1a15" id="winRestartBtn" aria-label="Play again">🔄 Play Again</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   EARTHQUAKE SIMULATOR — GAME ENGINE
+═══════════════════════════════════════════════ */
+
+// ── DATA ──────────────────────────────────────
+const MATERIALS = {
+  WOOD:      { name:'Wood',      emoji:'🪵', strength:2, flex:3, weight:1, color:'#c8833a' },
+  BRICK:     { name:'Brick',     emoji:'🧱', strength:3, flex:1, weight:3, color:'#c84040' },
+  STEEL:     { name:'Steel',     emoji:'🔩', strength:5, flex:4, weight:2, color:'#708090' },
+  STONE:     { name:'Stone',     emoji:'🪨', strength:4, flex:1, weight:5, color:'#8090a0' },
+  COMPOSITE: { name:'Composite', emoji:'⚙️', strength:4, flex:4, weight:3, color:'#a070c8' }
+};
+
+const STRUCTURES = {
+  BOX:      { name:'Box',      stability:2, desc:'Simple' },
+  CROSS:    { name:'Cross',    stability:4, desc:'Reinforced' },
+  TRIANGLE: { name:'Triangle', stability:5, desc:'Triangulated' },
+  DOME:     { name:'Dome',     stability:5, desc:'Arch Form' }
+};
+
+// ── STATE ──────────────────────────────────────
+let state = {
+  lives: 3,
+  score: 0,
+  round: 1,
+  phase: 'select',       // select | built | testing | result
+  selectedMat: null,
+  selectedStr: null,
+  magnitude: 0,
+  timerMax: 30,
+  timerLeft: 30,
+  timerInterval: null,
+  survivedRounds: 0,
+  perfectDesigns: 0,
+  roundHistory: [],
+  built: false,
+  testing: false,
+  animFrame: null,
+  seismoData: new Array(160).fill(0),
+  roundStartTime: 0
+};
+
+// ── ROUND MANAGER ──────────────────────────────
+function roundManager(round) {
+  if (round <= 4) {
+    return {
+      difficulty: 'easy',
+      magnitude:  +(3.0 + Math.random() * 1.5).toFixed(1),
+      timer: 30
+    };
+  } else if (round <= 7) {
+    return {
+      difficulty: 'medium',
+      magnitude:  +(5.0 + Math.random() * 1.5).toFixed(1),
+      timer: 25
+    };
+  } else {
+    return {
+      difficulty: 'hard',
+      magnitude:  +(7.0 + Math.random() * 2.0).toFixed(1),
+      timer: 20
+    };
+  }
+}
+
+// ── SURVIVAL FORMULA ──────────────────────────
+function calcIsStable(matKey, strKey, magnitude) {
+  if (!matKey || !strKey) return false;
+  const material  = MATERIALS[matKey];
+  const structure = STRUCTURES[strKey];
+  const score     = material.strength + structure.stability + (material.flex * 0.5);
+  return score >= (magnitude * 1.5);
+}
+
+function calcCombinedScore(matKey, strKey) {
+  if (!matKey || !strKey) return 0;
+  const m = MATERIALS[matKey];
+  const s = STRUCTURES[strKey];
+  return m.strength + s.stability + (m.flex * 0.5);
+}
+
+// ── AUDIO ──────────────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new AudioCtx(); } catch(e) {}
+  }
+  return audioCtx;
+}
+
+function playRumble(magnitude, duration = 3000) {
+  const ctx = getAudio(); if (!ctx) return;
+  const baseFreq = 40 + (magnitude / 9.0) * 40; // 40–80 Hz
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+  osc.frequency.linearRampToValueAtTime(baseFreq * 1.3, ctx.currentTime + duration / 1000);
+  gain.gain.setValueAtTime(0.18, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + duration / 1000);
+  return osc;
+}
+
+function playCollapse() {
+  const ctx = getAudio(); if (!ctx) return;
+  const bufSize = ctx.sampleRate * 1.5;
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const hpf = ctx.createBiquadFilter();
+  hpf.type = 'highpass'; hpf.frequency.value = 200;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.5, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+  src.connect(hpf); hpf.connect(gain); gain.connect(ctx.destination);
+  src.start();
+}
+
+function playVictoryChime() {
+  const ctx = getAudio(); if (!ctx) return;
+  const freqs = [523.25, 659.25, 783.99, 1046.50];
+  freqs.forEach((freq, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
+    gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
+    gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + i * 0.12 + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(ctx.currentTime + i * 0.12);
+    osc.stop(ctx.currentTime + i * 0.12 + 0.55);
+  });
+}
+
+function playFailTone() {
+  const ctx = getAudio(); if (!ctx) return;
+  const freqs = [440, 370, 311, 261];
+  freqs.forEach((freq, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.18);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime + i * 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.18 + 0.4);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(ctx.currentTime + i * 0.18);
+    osc.stop(ctx.currentTime + i * 0.18 + 0.45);
+  });
+}
+
+// ── BUILDING SVG ──────────────────────────────
+function buildingSVG(matKey, strKey) {
+  if (!matKey || !strKey) return `<text x="100" y="160" text-anchor="middle" fill="#2a3050" font-size="14" font-family="sans-serif">Build a structure</text>`;
+  const m = MATERIALS[matKey];
+  const s = STRUCTURES[strKey];
+  const c = m.color;
+  const cLight = c + 'cc';
+  const cDark  = c + '55';
+
+  const W = 200, H = 300;
+  const floors = 4 + Math.round(m.strength);
+  const floorH = Math.min(40, (H - 40) / floors);
+  const bldW   = 100 + s.stability * 8;
+  const bx     = (W - bldW) / 2;
+
+  let svgParts = `<rect x="0" y="0" width="${W}" height="${H}" fill="none"/>`;
+
+  // Ground shadow
+  svgParts += `<ellipse cx="100" cy="${H-5}" rx="${bldW/2+10}" ry="8" fill="${cDark}" opacity="0.5"/>`;
+
+  if (strKey === 'BOX') {
+    for (let f = 0; f < floors; f++) {
+      const fy = H - 10 - (f + 1) * floorH;
+      const shade = f % 2 === 0 ? cDark : cLight;
+      svgParts += `<rect x="${bx}" y="${fy}" width="${bldW}" height="${floorH}" fill="${shade}" stroke="${c}" stroke-width="1.5" rx="1"/>`;
+      for (let w = 0; w < 3; w++) {
+        const wx = bx + 10 + w * (bldW - 20) / 2;
+        svgParts += `<rect x="${wx}" y="${fy+6}" width="18" height="${floorH-12}" fill="${c}44" stroke="${c}88" stroke-width="1" rx="2"/>`;
+      }
+    }
+  } else if (strKey === 'CROSS') {
+    const coreW = bldW * 0.5;
+    const wingW = bldW * 0.25;
+    const cx2 = (W - coreW) / 2;
+    for (let f = 0; f < floors; f++) {
+      const fy = H - 10 - (f + 1) * floorH;
+      const shade = f % 2 === 0 ? cDark : cLight;
+      svgParts += `<rect x="${cx2}" y="${fy}" width="${coreW}" height="${floorH}" fill="${shade}" stroke="${c}" stroke-width="1.5"/>`;
+      if (f < floors * 0.6) {
+        svgParts += `<rect x="${bx}" y="${fy+floorH*0.25}" width="${wingW}" height="${floorH*0.5}" fill="${cDark}" stroke="${c}" stroke-width="1"/>`;
+        svgParts += `<rect x="${W-bx-wingW}" y="${fy+floorH*0.25}" width="${wingW}" height="${floorH*0.5}" fill="${cDark}" stroke="${c}" stroke-width="1"/>`;
+      }
+    }
+    // Cross bracing
+    svgParts += `<line x1="${cx2}" y1="${H-10}" x2="${cx2+coreW}" y2="${H-10-floors*floorH}" stroke="${c}88" stroke-width="2"/>`;
+    svgParts += `<line x1="${cx2+coreW}" y1="${H-10}" x2="${cx2}" y2="${H-10-floors*floorH}" stroke="${c}88" stroke-width="2"/>`;
+  } else if (strKey === 'TRIANGLE') {
+    const th = floors * floorH;
+    const baseW = bldW;
+    const topW  = bldW * 0.3;
+    for (let f = 0; f < floors; f++) {
+      const t = f / floors;
+      const fw = baseW - (baseW - topW) * t;
+      const fy = H - 10 - (f + 1) * floorH;
+      const fx = (W - fw) / 2;
+      const shade = f % 2 === 0 ? cDark : cLight;
+      svgParts += `<rect x="${fx}" y="${fy}" width="${fw}" height="${floorH}" fill="${shade}" stroke="${c}" stroke-width="1.5" rx="1"/>`;
+    }
+    // Diagonal braces
+    svgParts += `<line x1="${(W-baseW)/2}" y1="${H-10}" x2="${W/2}" y2="${H-10-th}" stroke="${c}99" stroke-width="2"/>`;
+    svgParts += `<line x1="${(W+baseW)/2}" y1="${H-10}" x2="${W/2}" y2="${H-10-th}" stroke="${c}99" stroke-width="2"/>`;
+    // Rooftop
+    svgParts += `<polygon points="${W/2},${H-10-th-20} ${(W-topW*0.3)/2},${H-10-th} ${(W+topW*0.3)/2},${H-10-th}" fill="${c}" opacity="0.8"/>`;
+  } else if (strKey === 'DOME') {
+    const baseH  = floors * floorH * 0.5;
+    const domeH  = floors * floorH * 0.55;
+    const by     = H - 10 - baseH;
+    // Base
+    svgParts += `<rect x="${bx}" y="${by}" width="${bldW}" height="${baseH}" fill="${cDark}" stroke="${c}" stroke-width="1.5"/>`;
+    // Dome
+    const dy = by - domeH;
+    svgParts += `<ellipse cx="${W/2}" cy="${by}" rx="${bldW/2}" ry="${domeH}" fill="${cDark}" stroke="${c}" stroke-width="2"/>`;
+    svgParts += `<rect x="${bx}" y="${by}" width="${bldW}" height="${domeH/2}" fill="${cDark}"/>`;
+    // Windows in base
+    for (let w = 0; w < 4; w++) {
+      const wx = bx + 8 + w * (bldW-16)/3;
+      svgParts += `<rect x="${wx}" y="${by+8}" width="14" height="18" fill="${c}44" stroke="${c}88" stroke-width="1" rx="7 7 0 0"/>`;
+    }
+    // Dome ribs
+    for (let r = 0; r < 5; r++) {
+      const angle = (-90 + r * 45) * Math.PI / 180;
+      const ex = W/2 + Math.cos(angle) * bldW/2;
+      const ey = by + Math.sin(angle) * domeH;
+      svgParts += `<line x1="${W/2}" y1="${dy}" x2="${ex}" y2="${ey}" stroke="${c}55" stroke-width="1.5"/>`;
+    }
+  }
+
+  // Antenna / flag on top
+  const topY = H - 10 - floors * floorH;
+  svgParts += `<line x1="${W/2}" y1="${topY}" x2="${W/2}" y2="${topY-20}" stroke="${c}" stroke-width="2"/>`;
+  svgParts += `<polygon points="${W/2},${topY-20} ${W/2+10},${topY-14} ${W/2},${topY-8}" fill="${c}" opacity="0.9"/>`;
+
+  return svgParts;
+}
+
+// ── PARTICLE SYSTEM ──────────────────────────
+function spawnDebris(materialColor) {
+  const arena = document.getElementById('arena');
+  const wrap  = document.getElementById('buildingWrap');
+  const rect  = wrap.getBoundingClientRect();
+  const arenaRect = arena.getBoundingClientRect();
+  const cx = rect.left - arenaRect.left + rect.width  / 2;
+  const cy = rect.top  - arenaRect.top  + rect.height / 2;
+  const count = 24;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'debris';
+    const size = 4 + Math.random() * 10;
+    el.style.cssText = `
+      left:${cx}px; top:${cy}px;
+      width:${size}px; height:${size}px;
+      background:${materialColor};
+      opacity:1;
+      --dx:${(Math.random()-0.5)*300}px;
+      --dy:${(Math.random()-0.8)*400}px;
+      --dr:${(Math.random()-0.5)*720}deg;
+      animation: debris-anim ${0.8+Math.random()*1.2}s ease-out ${Math.random()*0.2}s forwards;
+    `;
+    arena.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
+// ── SEISMOGRAPH ──────────────────────────────
+let seismoAnim = null;
+
+function updateSeismo(amplitude) {
+  const canvas = document.getElementById('seismoCanvas');
+  if (!canvas) return;
+  const ctx2d  = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const data   = state.seismoData;
+  data.shift();
+  data.push((Math.random() - 0.5) * amplitude * 2);
+  ctx2d.clearRect(0, 0, w, h);
+  ctx2d.fillStyle = '#050810';
+  ctx2d.fillRect(0, 0, w, h);
+  ctx2d.strokeStyle = '#3ae09a';
+  ctx2d.lineWidth = 1.5;
+  ctx2d.beginPath();
+  data.forEach((v, i) => {
+    const x = i * (w / data.length);
+    const y = h/2 + v * (h/2.5);
+    i === 0 ? ctx2d.moveTo(x,y) : ctx2d.lineTo(x,y);
+  });
+  ctx2d.stroke();
+}
+
+function startSeismo(amplitude) {
+  stopSeismo();
+  function tick() {
+    updateSeismo(amplitude);
+    seismoAnim = requestAnimationFrame(tick);
+  }
+  seismoAnim = requestAnimationFrame(tick);
+}
+
+function stopSeismo() {
+  if (seismoAnim) { cancelAnimationFrame(seismoAnim); seismoAnim = null; }
+  updateSeismo(0);
+}
+
+// ── TIMER ──────────────────────────────────────
+function startTimer() {
+  stopTimer();
+  state.roundStartTime = Date.now();
+  state.timerLeft = state.timerMax;
+  updateTimerDisplay();
+  state.timerInterval = setInterval(() => {
+    state.timerLeft--;
+    updateTimerDisplay();
+    if (state.timerLeft <= 0) {
+      stopTimer();
+      handleTimeUp();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (state.timerInterval) { clearInterval(state.timerInterval); state.timerInterval = null; }
+}
+
+function updateTimerDisplay() {
+  const el  = document.getElementById('timerDisplay');
+  const arc = document.getElementById('timerArc');
+  el.textContent = state.timerLeft;
+  if (state.timerLeft <= 8)  { el.style.color = '#e0423a'; }
+  else if (state.timerLeft <= 15) { el.style.color = '#f4a33a'; }
+  else { el.style.color = '#f4a33a'; }
+  const circ = 150.8;
+  const pct = state.timerLeft / state.timerMax;
+  arc.style.strokeDashoffset = circ * (1 - pct);
+  arc.style.stroke = state.timerLeft <= 8 ? '#e0423a' : state.timerLeft <= 15 ? '#f4a33a' : '#3ae0a0';
+}
+
+function handleTimeUp() {
+  if (state.phase !== 'testing') return;
+  state.phase = 'result';
+  resolveRound(false, 'Time ran out!');
+}
+
+// ── MAGNITUDE METER ──────────────────────────
+function updateMagMeter(mag) {
+  const pct = ((mag - 3) / 6) * 100;
+  document.getElementById('magFill').style.height = Math.min(100, Math.max(0, pct)) + '%';
+}
+
+// ── UI HELPERS ────────────────────────────────
+function toast(msg, dur = 2000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), dur);
+}
+
+function statusMsg(msg, color = '#ffffff', dur = 2500) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.style.color = color;
+  el.classList.add('show');
+  if (dur > 0) setTimeout(() => el.classList.remove('show'), dur);
+}
+
+function clearStatusMsg() {
+  document.getElementById('statusMsg').classList.remove('show');
+}
+
+function updateHUD() {
+  const cfg = roundManager(state.round);
+  document.getElementById('roundDisplay').textContent = `${state.round}/10`;
+  document.getElementById('scoreDisplay').textContent = state.score;
+
+  // Lives
+  const hearts = '❤️'.repeat(state.lives) + '🖤'.repeat(Math.max(0, 3 - state.lives));
+  document.getElementById('livesDisplay').textContent = hearts;
+
+  // Difficulty badge
+  const diffEl = document.getElementById('diffDisplay');
+  const d = state.round <= 4 ? 'easy' : state.round <= 7 ? 'medium' : 'hard';
+  diffEl.textContent = d.toUpperCase();
+  diffEl.className = 'hud-block diff-' + d;
+
+  // Magnitude
+  const magEl = document.getElementById('magDisplay');
+  magEl.textContent = state.magnitude > 0 ? state.magnitude.toFixed(1) : '–';
+}
+
+function updateStats() {
+  const m = state.selectedMat  ? MATERIALS[state.selectedMat]   : null;
+  const s = state.selectedStr  ? STRUCTURES[state.selectedStr]  : null;
+  const score = m && s ? calcCombinedScore(state.selectedMat, state.selectedStr) : 0;
+  const need  = state.magnitude > 0 ? (state.magnitude * 1.5) : 0;
+  document.getElementById('statStrength').textContent  = m ? m.strength  : '–';
+  document.getElementById('statFlex').textContent      = m ? m.flex      : '–';
+  document.getElementById('statStability').textContent = s ? s.stability : '–';
+  document.getElementById('statScore').textContent     = score > 0 ? score.toFixed(1) : '–';
+  const pct = need > 0 ? Math.min(100, (score / (need || 1)) * 100) : 0;
+  const fill = document.getElementById('stabilityFill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct >= 100 ? '#3ae09a' : pct >= 70 ? '#f4a33a' : '#e0423a';
+}
+
+function updatePhaseLabel(text) {
+  document.getElementById('phaseLabel').textContent = text;
+}
+
+// Stars SVG
+function renderStars(count, container) {
+  container.innerHTML = '';
+  for (let i = 1; i <= 3; i++) {
+    const filled = i <= count;
+    const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    star.setAttribute('viewBox', '0 0 24 24');
+    star.setAttribute('width', '28'); star.setAttribute('height', '28');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    path.setAttribute('points', '12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26');
+    path.setAttribute('fill', filled ? '#f4a33a' : '#2a3050');
+    path.setAttribute('stroke', filled ? '#f4a33a' : '#3a4060');
+    path.setAttribute('stroke-width', '1');
+    star.appendChild(path);
+    container.appendChild(star);
+  }
+}
+
+function calcStars(survived, perfect) {
+  if (survived >= 10) return 3;
+  if (survived >= 6 || perfect >= 3) return 2;
+  if (survived >= 3) return 1;
+  return 0;
+}
+
+// ── ROUND HISTORY ──────────────────────────────
+function appendHistory(round, survived, roundScore) {
+  const container = document.getElementById('roundHistory');
+  const row = document.createElement('div');
+  row.className = 'hist-row';
+  const label = survived ? '✓' : '✗';
+  const cls   = survived ? 'hist-survived' : 'hist-failed';
+  row.innerHTML = `
+    <span class="hist-r">R${round}</span>
+    <span class="hist-result ${cls}">${label}</span>
+    <span class="hist-score">+${roundScore}</span>
+  `;
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ── BUILD BUILDING ────────────────────────────
+function buildBuilding() {
+  const svg = document.getElementById('buildingSVG');
+  svg.innerHTML = buildingSVG(state.selectedMat, state.selectedStr);
+  svg.removeAttribute('class');
+}
+
+function resetBuildingAnim() {
+  const wrap = document.getElementById('buildingWrap');
+  wrap.classList.remove('shake-light', 'shake-medium', 'shake-hard');
+  const svg = document.getElementById('buildingSVG');
+  svg.classList.remove('collapsing');
+}
+
+// ── SHAKE BUILDING ────────────────────────────
+function startShake(magnitude) {
+  const wrap = document.getElementById('buildingWrap');
+  resetBuildingAnim();
+  if (magnitude < 5)      wrap.classList.add('shake-light');
+  else if (magnitude < 7) wrap.classList.add('shake-medium');
+  else                    wrap.classList.add('shake-hard');
+}
+
+function stopShake() {
+  const wrap = document.getElementById('buildingWrap');
+  wrap.classList.remove('shake-light', 'shake-medium', 'shake-hard');
+}
+
+function collapseBuilding() {
+  const svg = document.getElementById('buildingSVG');
+  svg.classList.add('collapsing');
+}
+
+// ── GAME FLOW ─────────────────────────────────
+function initRound() {
+  const cfg = roundManager(state.round);
+  state.magnitude = cfg.magnitude;
+  state.timerMax  = cfg.timer;
+  state.timerLeft = cfg.timer;
+  state.phase = 'select';
+  state.built = false;
+  state.testing = false;
+
+  resetBuildingAnim();
+  buildBuilding();  // reset to placeholder
+  updateMagMeter(state.magnitude);
+  updateHUD();
+  updateTimerDisplay();
+  updatePhaseLabel('SELECT MATERIAL & STRUCTURE');
+
+  // Enable selectors, disable test
+  document.getElementById('buildBtn').disabled = !(state.selectedMat && state.selectedStr);
+  document.getElementById('testBtn').disabled  = true;
+  document.getElementById('nextRoundBtn').style.display = 'none';
+
+  stopSeismo();
+  state.seismoData = new Array(160).fill(0);
+  updateSeismo(0);
+  clearStatusMsg();
+
+  toast(`Round ${state.round} — Mag ${state.magnitude.toFixed(1)} earthquake incoming!`);
+}
+
+function handleBuild() {
+  if (!state.selectedMat || !state.selectedStr) return;
+  state.phase = 'built';
+  state.built = true;
+  buildBuilding();
+  document.getElementById('buildBtn').disabled  = true;
+  document.getElementById('testBtn').disabled   = false;
+  updatePhaseLabel('READY TO TEST');
+  statusMsg('Structure built! Hit TEST to run the earthquake.', '#a0c0ff', 0);
+  startTimer();
+  getAudio(); // pre-init
+}
+
+function handleTest() {
+  if (!state.built || state.phase !== 'built') return;
+  state.phase   = 'testing';
+  state.testing = true;
+  stopTimer();
+  document.getElementById('testBtn').disabled = true;
+  clearStatusMsg();
+
+  const elapsed = (Date.now() - state.roundStartTime) / 1000;
+  state._testElapsed = elapsed;
+
+  updatePhaseLabel('⚡ EARTHQUAKE IN PROGRESS');
+  startShake(state.magnitude);
+  startSeismo(state.magnitude / 4);
+  playRumble(state.magnitude, 3000);
+
+  setTimeout(() => {
+    stopShake();
+    stopSeismo();
+    const survived = calcIsStable(state.selectedMat, state.selectedStr, state.magnitude);
+    resolveRound(survived, null);
+  }, 3000);
+}
+
+function resolveRound(survived, reason) {
+  state.phase   = 'result';
+  state.testing = false;
+  stopTimer();
+  stopShake();
+  stopSeismo();
+
+  const timeLeft   = state.timerLeft;
+  const speedBonus = timeLeft > 0 ? timeLeft : 0;
+  const matStr     = calcCombinedScore(state.selectedMat, state.selectedStr);
+  const threshold  = state.magnitude * 1.5;
+  const perfect    = survived && matStr >= threshold * 1.5;
+
+  let roundScore = 0;
+  if (survived) {
+    roundScore += 20;                         // survival bonus
+    roundScore += Math.floor(speedBonus * 0.5);
+    if (perfect) { roundScore += 30; state.perfectDesigns++; }
+    state.survivedRounds++;
+  }
+  state.score += roundScore;
+  state.roundHistory.push({ round: state.round, survived, roundScore });
+  appendHistory(state.round, survived, roundScore);
+  updateHUD();
+
+  if (survived) {
+    playVictoryChime();
+    statusMsg('🏗️ SURVIVED!', '#3ae09a', 0);
+  } else {
+    if (!reason) reason = 'Structure collapsed!';
+    playFailTone();
+    playCollapse();
+    collapseBuilding();
+    spawnDebris(state.selectedMat ? MATERIALS[state.selectedMat].color : '#c84040');
+    statusMsg('💀 COLLAPSED!', '#e0423a', 0);
+    state.lives--;
+    updateHUD();
+    // Flash red
+    document.body.style.background = '#3a0808';
+    setTimeout(() => document.body.style.background = '', 400);
+  }
+
+  setTimeout(() => {
+    clearStatusMsg();
+    showResultOverlay(survived, roundScore, speedBonus, perfect ? 30 : 0, reason);
+  }, survived ? 2000 : 2500);
+}
+
+function showResultOverlay(survived, roundScore, speedBonus, perfectBonus, reason) {
+  const overlay = document.getElementById('resultOverlay');
+  overlay.classList.remove('hidden');
+
+  document.getElementById('resultEmoji').textContent = survived ? '🏗️' : '💥';
+  const title = document.getElementById('resultTitle');
+  title.textContent = survived ? 'SURVIVED!' : 'COLLAPSED!';
+  title.className = 'result-title ' + (survived ? 'result-survived' : 'result-failed');
+
+  const stars = calcStars(state.survivedRounds, state.perfectDesigns);
+  renderStars(stars, document.getElementById('resultStars'));
+
+  const matLabel = state.selectedMat ? MATERIALS[state.selectedMat].name : '?';
+  const strLabel = state.selectedStr ? STRUCTURES[state.selectedStr].name : '?';
+  const combined = calcCombinedScore(state.selectedMat, state.selectedStr).toFixed(1);
+  const threshold = (state.magnitude * 1.5).toFixed(1);
+  document.getElementById('resultMsg').innerHTML = survived
+    ? `Your <b>${matLabel} ${strLabel}</b> withstood a magnitude <b>${state.magnitude}</b> quake!<br>Combined score <b>${combined}</b> ≥ threshold <b>${threshold}</b> ✓`
+    : `${reason || 'Structure failed'}<br>Your <b>${matLabel} ${strLabel}</b> scored <b>${combined}</b> but needed <b>${threshold}</b>`;
+
+  document.getElementById('rbRound').textContent  = `+${survived ? 20 : 0}`;
+  document.getElementById('rbSpeed').textContent  = `+${Math.floor(speedBonus * 0.5)}`;
+  document.getElementById('rbPerfect').textContent= `+${perfectBonus}`;
+  document.getElementById('rbTotal').textContent  = state.score;
+
+  const contBtn = document.getElementById('resultContinueBtn');
+  if (!survived && state.lives <= 0) {
+    contBtn.textContent = 'See Results';
+    contBtn.onclick = () => { overlay.classList.add('hidden'); showGameOver(); };
+  } else if (state.round >= 10) {
+    contBtn.textContent = survived ? '🏆 See Final Results' : 'See Results';
+    contBtn.onclick = () => { overlay.classList.add('hidden'); showWin(); };
+  } else {
+    contBtn.textContent = 'Next Round →';
+    contBtn.onclick = () => {
+      overlay.classList.add('hidden');
+      state.round++;
+      // Reset selections for new round
+      state.selectedMat = null;
+      state.selectedStr = null;
+      refreshSelectionUI();
+      initRound();
+    };
+  }
+}
+
+function showGameOver() {
+  document.getElementById('gameOverOverlay').classList.remove('hidden');
+  document.getElementById('goScore').textContent = state.score;
+  document.getElementById('goRounds').textContent = `Survived ${state.survivedRounds}/10 rounds`;
+  const stars = calcStars(state.survivedRounds, state.perfectDesigns);
+  renderStars(stars, document.getElementById('goStars'));
+}
+
+function showWin() {
+  document.getElementById('winOverlay').classList.remove('hidden');
+  document.getElementById('winScore').textContent = state.score;
+  const stars = calcStars(state.survivedRounds, state.perfectDesigns);
+  renderStars(stars, document.getElementById('winStars'));
+}
+
+function restartGame() {
+  document.getElementById('gameOverOverlay').classList.add('hidden');
+  document.getElementById('winOverlay').classList.add('hidden');
+  document.getElementById('resultOverlay').classList.add('hidden');
+  document.getElementById('roundHistory').innerHTML = '';
+  stopTimer();
+  stopSeismo();
+  state = {
+    lives: 3, score: 0, round: 1,
+    phase: 'select', selectedMat: null, selectedStr: null,
+    magnitude: 0, timerMax: 30, timerLeft: 30,
+    timerInterval: null,
+    survivedRounds: 0, perfectDesigns: 0,
+    roundHistory: [],
+    built: false, testing: false, animFrame: null,
+    seismoData: new Array(160).fill(0),
+    roundStartTime: 0
+  };
+  refreshSelectionUI();
+  document.getElementById('buildingSVG').innerHTML = `<text x="100" y="160" text-anchor="middle" fill="#2a3050" font-size="14" font-family="sans-serif">Build a structure</text>`;
+  resetBuildingAnim();
+  // Return to main menu
+  document.getElementById('mainMenuOverlay').classList.remove('hidden');
+}
+
+// ── MATERIAL / STRUCTURE BUTTONS ─────────────
+function buildControlUI() {
+  const matSection = document.querySelector('#controls .ctrl-section:nth-child(1)');
+  Object.entries(MATERIALS).forEach(([key, m]) => {
+    const btn = document.createElement('button');
+    btn.className = 'mat-btn';
+    btn.dataset.mat = key;
+    btn.setAttribute('aria-label', `Select ${m.name} material`);
+    btn.innerHTML = `
+      <div class="mat-icon" style="background:${m.color}22;border:1px solid ${m.color}66">
+        <span>${m.emoji}</span>
+      </div>
+      <div>
+        <div class="mat-name" style="color:${m.color}">${m.name}</div>
+        <div class="mat-stat">STR:${m.strength} FLX:${m.flex}</div>
+      </div>
+    `;
+    btn.addEventListener('click', () => selectMaterial(key));
+    matSection.appendChild(btn);
+  });
+
+  const strSection = document.querySelector('#controls .ctrl-section:nth-child(2)');
+  Object.entries(STRUCTURES).forEach(([key, s]) => {
+    const btn = document.createElement('button');
+    btn.className = 'str-btn';
+    btn.dataset.str = key;
+    btn.setAttribute('aria-label', `Select ${s.name} structure`);
+    btn.innerHTML = `
+      ${structureMiniSVG(key)}
+      <div>
+        <div class="str-name">${s.name}</div>
+        <div class="str-stat">${s.desc} · STB:${s.stability}</div>
+      </div>
+    `;
+    btn.addEventListener('click', () => selectStructure(key));
+    strSection.appendChild(btn);
+  });
+}
+
+function structureMiniSVG(key) {
+  const svgs = {
+    BOX: `<svg class="str-svg" viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" fill="none" stroke="#3a4060" stroke-width="2"/><rect x="8" y="8" width="7" height="10" fill="#1a2030"/><rect x="17" y="8" width="7" height="10" fill="#1a2030"/></svg>`,
+    CROSS: `<svg class="str-svg" viewBox="0 0 32 32"><rect x="12" y="2" width="8" height="28" fill="none" stroke="#60a0e0" stroke-width="2"/><rect x="2" y="12" width="28" height="8" fill="none" stroke="#60a0e0" stroke-width="2"/></svg>`,
+    TRIANGLE: `<svg class="str-svg" viewBox="0 0 32 32"><polygon points="16,2 2,30 30,30" fill="none" stroke="#f4a33a" stroke-width="2"/><line x1="16" y1="2" x2="16" y2="30" stroke="#f4a33a44" stroke-width="1"/></svg>`,
+    DOME: `<svg class="str-svg" viewBox="0 0 32 32"><path d="M4,28 A14,14 0 0,1 28,28 Z" fill="none" stroke="#3ae0a0" stroke-width="2"/><line x1="4" y1="28" x2="28" y2="28" stroke="#3ae0a0" stroke-width="2"/><rect x="4" y="22" width="24" height="8" fill="none" stroke="#3ae0a0" stroke-width="1.5"/></svg>`
+  };
+  return svgs[key] || '';
+}
+
+function selectMaterial(key) {
+  state.selectedMat = key;
+  refreshSelectionUI();
+  updateStats();
+  if (state.selectedMat && state.selectedStr && state.phase === 'select') {
+    document.getElementById('buildBtn').disabled = false;
+  }
+}
+
+function selectStructure(key) {
+  state.selectedStr = key;
+  refreshSelectionUI();
+  updateStats();
+  if (state.selectedMat && state.selectedStr && state.phase === 'select') {
+    document.getElementById('buildBtn').disabled = false;
+  }
+}
+
+function refreshSelectionUI() {
+  document.querySelectorAll('.mat-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.mat === state.selectedMat);
+  });
+  document.querySelectorAll('.str-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.str === state.selectedStr);
+  });
+  const bothSelected = state.selectedMat && state.selectedStr;
+  if (state.phase === 'select') {
+    document.getElementById('buildBtn').disabled = !bothSelected;
+  }
+  updateStats();
+}
+
+// ── INSTRUCTIONS OVERLAY ──────────────────────
+let instPage = 0;
+const INST_PAGES = 4;
+
+function showInstPage(p) {
+  instPage = Math.max(0, Math.min(INST_PAGES - 1, p));
+  document.querySelectorAll('.inst-page').forEach((el, i) => {
+    el.classList.toggle('active', i === instPage);
+  });
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('active', i === instPage);
+  });
+  document.getElementById('instPrev').style.display = instPage === 0 ? 'none' : '';
+  const nextBtn = document.getElementById('instNext');
+  nextBtn.style.display = '';
+  if (instPage === INST_PAGES - 1) {
+    nextBtn.textContent = 'Got it →';
+    nextBtn.onclick = () => {
+      document.getElementById('instructOverlay').classList.add('hidden');
+      document.getElementById('mainMenuOverlay').classList.remove('hidden');
+    };
+  } else {
+    nextBtn.textContent = 'Next →';
+    nextBtn.onclick = () => showInstPage(instPage + 1);
+  }
+}
+
+// ── INIT ──────────────────────────────────────
+function init() {
+  buildControlUI();
+
+  // Main menu buttons
+  document.getElementById('menuStartBtn').onclick = () => {
+    document.getElementById('mainMenuOverlay').classList.add('hidden');
+    initRound();
+  };
+  document.getElementById('menuHowToBtn').onclick = () => {
+    document.getElementById('mainMenuOverlay').classList.add('hidden');
+    document.getElementById('instructOverlay').classList.remove('hidden');
+    showInstPage(0);
+  };
+
+  // Instructions navigation
+  document.getElementById('instPrev').onclick = () => showInstPage(instPage - 1);
+  document.getElementById('instNext').onclick = () => showInstPage(instPage + 1);
+  document.querySelectorAll('.dot').forEach(d => {
+    d.addEventListener('click', () => showInstPage(+d.dataset.p));
+  });
+  showInstPage(0);
+
+  // Help button -> instructions
+  document.getElementById('helpBtn').onclick = () => {
+    document.getElementById('instructOverlay').classList.remove('hidden');
+    showInstPage(0);
+  };
+
+  // Build / Test
+  document.getElementById('buildBtn').addEventListener('click', handleBuild);
+  document.getElementById('testBtn').addEventListener('click', handleTest);
+
+  // Restart buttons
+  document.getElementById('restartBtn').addEventListener('click', restartGame);
+  document.getElementById('winRestartBtn').addEventListener('click', restartGame);
+
+  // Seismo idle
+  updateSeismo(0);
+
+  // Arena ground decoration
+  const arena = document.getElementById('arena');
+  for (let i = 0; i < 20; i++) {
+    const star = document.createElement('div');
+    star.style.cssText = `
+      position:absolute;
+      left:${Math.random()*100}%;
+      top:${Math.random()*80}%;
+      width:${1+Math.random()*2}px;
+      height:${1+Math.random()*2}px;
+      border-radius:50%;
+      background:rgba(255,255,255,${0.1+Math.random()*0.3});
+      pointer-events:none;
+    `;
+    arena.appendChild(star);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
